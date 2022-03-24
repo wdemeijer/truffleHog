@@ -206,22 +206,32 @@ def print_results(printJson, issue):
             print(printableDiff.encode('utf-8'))
         print("~~~~~~~~~~~~~~~~~~~~~")
 
+def build_string_context(string, lines, line_index, word_index):
+    stringContext = {}
+    stringContext['value'] = string
+    stringContext['line_index'] = line_index
+    stringContext['word_index'] = word_index
+    stringContext['preceding_words'] = ''.join(lines[line_index].split()[word_index-5:word_index])
+    stringContext['word'] = lines[line_index].split()[word_index]
+    stringContext['ensuing_words'] = ''.join(lines[line_index].split()[word_index+1:word_index+5])
+    return stringContext
+
 def find_entropy(printableDiff, commit_time, branch_name, prev_commit, blob, commitHash):
     stringsFound = []
     lines = printableDiff.split("\n")
-    for line in lines:
-        for word in line.split():
+    for line_index, line in enumerate(lines, start=0):
+        for word_index, word in enumerate(line.split(), start=0):
             base64_strings = get_strings_of_set(word, BASE64_CHARS)
             hex_strings = get_strings_of_set(word, HEX_CHARS)
             for string in base64_strings:
                 b64Entropy = shannon_entropy(string, BASE64_CHARS)
                 if b64Entropy > 4.5:
-                    stringsFound.append(string)
+                    stringsFound.append(build_string_context(string, lines, line_index, word_index))
                     printableDiff = printableDiff.replace(string, bcolors.WARNING + string + bcolors.ENDC)
             for string in hex_strings:
                 hexEntropy = shannon_entropy(string, HEX_CHARS)
                 if hexEntropy > 3:
-                    stringsFound.append(string)
+                    stringsFound.append(build_string_context(string, lines, line_index, word_index))
                     printableDiff = printableDiff.replace(string, bcolors.WARNING + string + bcolors.ENDC)
     entropicDiff = None
     if len(stringsFound) > 0:
